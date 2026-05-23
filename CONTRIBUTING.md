@@ -216,6 +216,47 @@ Typical flow:
 7. Build/update the Svelte component
 8. Write tests (unit + property if applicable)
 
+## Versioning
+
+We use [Semantic Versioning](https://semver.org/). The version is defined in three places that must stay in sync:
+
+- `package.json` — npm/frontend version
+- `src-tauri/Cargo.toml` — Rust crate version
+- `src-tauri/tauri.conf.json` — Tauri app version (used in built binaries and shown in the UI)
+
+### Bumping the version
+
+Use the provided script:
+
+```bash
+npm run bump 1.0.0
+```
+
+Or directly:
+
+```bash
+./scripts/bump-version.sh 1.0.0
+```
+
+This updates all three files. Then:
+
+```bash
+git add -A
+git commit -m "chore: bump version to 1.0.0"
+git tag v1.0.0
+git push && git push --tags
+```
+
+### Version display
+
+The version from `tauri.conf.json` is shown in the app sidebar (bottom). Tauri provides it at runtime via `@tauri-apps/api/app`.
+
+### When to bump
+
+- **Patch** (0.1.x): Bug fixes, minor UI tweaks
+- **Minor** (0.x.0): New features, non-breaking changes
+- **Major** (x.0.0): Breaking changes to config format or behavior
+
 ## Known Limitations
 
 - **No real-time output streaming** — PHP Deployer buffers stdout when not connected to a TTY. Output appears after the deployment completes. This is a known limitation we'd like to solve.

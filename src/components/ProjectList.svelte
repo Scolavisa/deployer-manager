@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from "svelte";
+  import { getVersion } from "@tauri-apps/api/app";
   import { projects, selectedProjectId } from "../lib/stores";
   import type { Project } from "../types";
   import AddProjectDialog from "./AddProjectDialog.svelte";
@@ -6,6 +8,15 @@
   let showAddDialog = $state(false);
   let projectList: Project[] = $state([]);
   let currentSelectedId: string | null = $state(null);
+  let appVersion = $state("");
+
+  onMount(async () => {
+    try {
+      appVersion = await getVersion();
+    } catch {
+      appVersion = "";
+    }
+  });
 
   projects.subscribe((value) => {
     projectList = value;
@@ -60,6 +71,9 @@
     <button class="add-btn" onclick={() => (showAddDialog = true)}>
       + Add Project
     </button>
+    {#if appVersion}
+      <p class="version">v{appVersion}</p>
+    {/if}
   </div>
 </div>
 
@@ -157,5 +171,12 @@
 
   .add-btn:hover {
     background: var(--accent-hover);
+  }
+
+  .version {
+    text-align: center;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin-top: 8px;
   }
 </style>
