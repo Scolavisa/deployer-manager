@@ -21,7 +21,12 @@ pub async fn get_releases(
     let args = process::build_releases_args(&deploy_config, &environment);
     debug!("Running: dep {}", args.join(" "));
 
-    let output = Command::new("dep")
+    let dep_path = process::resolve_dep_path().map_err(|e| {
+        error!("Cannot find dep: {}", e);
+        e
+    })?;
+
+    let output = Command::new(&dep_path)
         .args(&args)
         .current_dir(&proj.path)
         .output()

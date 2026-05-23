@@ -2,10 +2,12 @@ use std::path::Path;
 use std::process::Command;
 
 use crate::error::AppError;
+use crate::services::process;
 
 /// Get all git tags from a repository directory
 pub fn get_tags(project_path: &Path) -> Result<Vec<String>, AppError> {
-    let output = Command::new("git")
+    let git_path = process::resolve_git_path();
+    let output = Command::new(&git_path)
         .args(["tag", "-l"])
         .current_dir(project_path)
         .output()
@@ -23,7 +25,8 @@ pub fn get_tags(project_path: &Path) -> Result<Vec<String>, AppError> {
 
 /// Get all git branches (local and remote) from a repository directory
 pub fn get_branches(project_path: &Path) -> Result<Vec<String>, AppError> {
-    let output = Command::new("git")
+    let git_path = process::resolve_git_path();
+    let output = Command::new(&git_path)
         .args(["branch", "-a", "--format=%(refname:short)"])
         .current_dir(project_path)
         .output()

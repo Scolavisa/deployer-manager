@@ -8,6 +8,68 @@ use tauri::{AppHandle, Emitter};
 use crate::error::AppError;
 use crate::models::{DeploymentOutput, OutputStream};
 
+/// Resolve the full path to the `dep` binary.
+/// Uses the user's login shell to find it, since desktop apps don't inherit shell PATH.
+pub fn resolve_dep_path() -> Result<String, AppError> {
+    // First try: just "dep" (works in dev mode or if PATH is set)
+    if let Ok(output) = std::process::Command::new("which").arg("dep").output() {
+        if output.status.success() {
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !path.is_empty() {
+                return Ok(path);
+            }
+        }
+    }
+
+    // Second try: use login shell to resolve PATH
+    if let Ok(output) = std::process::Command::new("bash")
+        .args(["-lc", "which dep"])
+        .output()
+    {
+        if output.status.success() {
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !path.is_empty() {
+                return Ok(path);
+            }
+        }
+    }
+
+    // Third try: common locations
+    let common_paths = [
+        dirs::home_dir().map(|h| h.join(".config/composer/vendor/bin/dep")),
+        dirs::home_dir().map(|h| h.join(".composer/vendor/bin/dep")),
+        Some(std::path::PathBuf::from("/usr/local/bin/dep")),
+        Some(std::path::PathBuf::from("/usr/bin/dep")),
+    ];
+
+    for path_opt in &common_paths {
+        if let Some(path) = path_opt {
+            if path.exists() {
+                return Ok(path.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    Err(AppError::ProcessError(
+        "Could not find 'dep' binary. Ensure PHP Deployer is installed and in your PATH.".into(),
+    ))
+}
+
+/// Resolve the full path to the `git` binary.
+pub fn resolve_git_path() -> String {
+    // git is almost always in standard PATH, but use same approach for consistency
+    if let Ok(output) = std::process::Command::new("which").arg("git").output() {
+        if output.status.success() {
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !path.is_empty() {
+                return path;
+            }
+        }
+    }
+    // Fallback
+    "git".to_string()
+}
+
 /// Spawn a deployment process and stream output via Tauri events.
 /// Runs in the project directory so relative paths in deploy.php work.
 pub async fn spawn_deployment(
@@ -23,7 +85,9 @@ pub async fn spawn_deployment(
 
     info!("Starting deployment in {:?}: dep {}", project_path, args.join(" "));
 
-    let mut child = Command::new("dep")
+    let dep_path = resolve_dep_path()?;
+
+    let mut child = Command::new(&dep_path)
         .args(&args)
         .current_dir(project_path)
         .stdout(std::process::Stdio::piped())
