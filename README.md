@@ -1,86 +1,64 @@
 # Deployment Manager
 
-A lightweight desktop application for managing [PHP Deployer](https://deployer.org/) deployments across multiple projects. Built with [Tauri](https://tauri.app/) (Rust backend + Svelte frontend).
+A lightweight desktop application for managing [PHP Deployer](https://deployer.org/) deployments across multiple projects.
+
+Register your projects, see their environments, deploy with a click, and track release history — all from one interface.
 
 ## Features
 
-- Register multiple projects and manage deployments from a single interface
+- Manage deployments for multiple projects from a single app
 - Auto-discovers environments from each project's `hosts.yaml`
 - Quick deploy with tag or branch selection
-- Real-time streaming of deployment output
-- View past release history per environment
+- View deployment output after completion
+- Release history per environment
 - Light and dark theme
 - Cross-platform: Linux (primary), macOS (planned)
 
+
 ![example app screen](assets/example_app_screen.png)
 
-## Requirements
+## Installation
 
-- **Rust** (1.70+) — [Install via rustup](https://rustup.rs/)
-- **Node.js** (18+) and npm
+### Prerequisites
+
 - **PHP Deployer** (`dep`) installed and available in PATH
-- **Git** — for tag/branch discovery
-- **System libraries** (Linux):
-  - Ubuntu/Debian: `sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev`
-  - Fedora: `sudo dnf install webkit2gtk4.1-devel openssl-devel curl wget file libappindicator-gtk3-devel librsvg2-devel`
-  - Arch: `sudo pacman -S webkit2gtk-4.1 base-devel curl wget file openssl appmenu-gtk-module libappindicator-gtk3 librsvg`
+- **Git** installed (for tag/branch discovery)
 
-## Project Structure
+### Download
 
-```
-deployment-manager/
-├── src/                    # Svelte frontend
-│   ├── components/         # UI components
-│   ├── lib/                # API wrappers, stores, event helpers
-│   └── types.ts            # TypeScript interfaces
-├── src-tauri/              # Rust backend
-│   ├── src/
-│   │   ├── commands/       # Tauri IPC command handlers
-│   │   ├── services/       # Business logic (config, hosts, git, process)
-│   │   └── models/         # Data structures
-│   └── Cargo.toml
-├── package.json
-└── README.md
-```
+Download the latest release from the [Releases](../../releases) page.
 
-## Development
+- **Linux**: `.deb` package or standalone binary
 
-```bash
-# Install frontend dependencies
-npm install
+### Build from source
 
-# Run in development mode (hot-reload)
-npm run tauri dev
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions.
 
-# Run Rust tests
-cd src-tauri && cargo test
+## Getting Started
 
-# Type-check the frontend
-npm run check
-```
+### 1. Prepare your project
 
-## Building
+Each project you want to manage needs a `.deployments/` directory containing:
 
-```bash
-# Build production binary
-npm run tauri build
-```
+- **`deploy.php`** — Your PHP Deployer recipe
+- **`hosts.yaml`** — Host configuration defining your environments
 
-The built binary will be in `src-tauri/target/release/deployment-manager`.
-On Linux, a `.deb` package is also generated in `src-tauri/target/release/bundle/deb/`.
+### 2. Register a project
 
-## Project Setup
+Click "+ Add Project" in the sidebar and enter the absolute path to your project root (the directory containing `.deployments/`).
 
-Each project you register must have a `.deployments/` directory containing:
+### 3. Deploy
 
-- **`deploy.php`** — PHP Deployer recipe (required for registration)
-- **`hosts.yaml`** — Host configuration defining environments
+1. Select your project in the sidebar
+2. Click "Deploy" on the environment you want to deploy to
+3. Select a tag or branch
+4. Hit Deploy
 
-### hosts.yaml format
+The deployment output appears after the process completes.
 
-The app supports two formats:
+## hosts.yaml format
 
-**Standard PHP Deployer format (with `hosts:` wrapper):**
+The app reads your existing PHP Deployer hosts configuration. Both formats are supported:
 
 ```yaml
 hosts:
@@ -100,23 +78,6 @@ hosts:
     stage: staging
 ```
 
-**Flat format (environments at top level):**
-
-```yaml
-prod:
-  hostname: server.example.com
-  remote_user: deploy
-  deploy_path: /var/www/app
-  keep_releases: 5
-staging:
-  hostname: server.example.com
-  remote_user: deploy
-  deploy_path: /var/www/staging
-  keep_releases: 3
-```
-
-### hosts.yaml fields
-
 | Field | Required | Description |
 |-------|----------|-------------|
 | `hostname` | yes | Server hostname or IP |
@@ -124,23 +85,14 @@ staging:
 | `deploy_path` | yes | Remote path for deployments |
 | `branch` | no | Default branch for this environment |
 | `stage` | no | Stage identifier (e.g., "prod", "staging") |
-| `keep_releases` | no | Number of recent releases to display in the app (default: 5) |
+| `keep_releases` | no | Number of recent releases to show in the app (default: 5) |
 
-## Usage
+## CLI Commands
 
-1. **Add a project**: Click "+ Add Project" in the sidebar and enter the path to your project root
-2. **Select a project**: Click on it in the sidebar to see its environments
-3. **Deploy**: Click "Deploy" on an environment card, select a tag or branch, and hit Deploy
-4. **View output**: Deployment output streams in real-time below the environment card
-5. **Release history**: Scroll down to see past releases for each environment
-6. **Theme**: Click the ☀/🌙 button in the bottom-right corner to toggle light/dark mode
-
-## CLI Commands Used
-
-The app executes these `dep` commands under the hood:
+Under the hood, the app executes these `dep` commands:
 
 ```bash
-# Deploy to an environment
+# Deploy
 dep deploy -f .deployments/deploy.php <environment>
 dep deploy -f .deployments/deploy.php <environment> --tag=<tag>
 dep deploy -f .deployments/deploy.php <environment> --branch=<branch>
@@ -149,26 +101,23 @@ dep deploy -f .deployments/deploy.php <environment> --branch=<branch>
 dep -f .deployments/deploy.php releases <environment>
 ```
 
-## Logging
+## Data Storage
 
-Logs are written to the platform log directory:
-- **Linux**: `~/.local/share/com.deployment-manager.app/logs/`
+| What | Where (Linux) |
+|------|---------------|
+| Registered projects | `~/.config/deployment-manager/config.json` |
+| Logs | `~/.local/share/com.deployment-manager.app/logs/` |
+| UI preferences (theme) | WebView localStorage in `~/.local/share/com.deployment-manager.app/` |
 
-Logs include info about environment discovery, deployment commands executed, and errors.
+On macOS, config is stored in `~/Library/Application Support/deployment-manager/config.json`.
 
-## Configuration
+## Tips
 
-App configuration (registered projects) is stored at:
-- **Linux**: `~/.config/deployment-manager/config.json`
-- **macOS**: `~/Library/Application Support/deployment-manager/config.json`
-
-### UI Preferences
-
-UI preferences (like theme choice) are stored in the WebView's `localStorage`, which persists in:
-- **Linux**: `~/.local/share/com.deployment-manager.app/` (WebKit data directory)
-
-This means preferences survive app restarts but are tied to the WebView storage, not the config file.
+- **Theme**: Click the ☀/🌙 button in the bottom-right corner to switch between light and dark mode
+- **Release history**: Shows the most recent releases based on `keep_releases` in your hosts.yaml (defaults to 5)
+- **Environments**: Displayed in alphabetical order for consistency across sessions
+- **Logs**: Check the log directory if something isn't working — environment discovery and deployment errors are logged there
 
 ## License
 
-MIT
+MIT — see [LICENCE](LICENCE)
