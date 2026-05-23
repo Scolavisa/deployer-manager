@@ -1,6 +1,6 @@
 {
   "productName": "Deployment Manager",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "identifier": "com.deployment-manager.app",
   "build": {
     "beforeDevCommand": "npm run dev",
