@@ -19,8 +19,13 @@ pub fn get_tags(project_path: &Path) -> Result<Vec<String>, AppError> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let tags = parse_git_output(&stdout);
+    let mut tags = parse_git_output(&stdout);
+    sort_descending(&mut tags);
     Ok(tags)
+}
+
+fn sort_descending(values: &mut [String]) {
+    values.sort_by(|a, b| b.cmp(a));
 }
 
 /// Get all git branches (local and remote) from a repository directory
@@ -88,5 +93,18 @@ mod tests {
         let output = "tag1\n\ntag2\n\n";
         let result = parse_git_output(output);
         assert_eq!(result, vec!["tag1", "tag2"]);
+    }
+
+    #[test]
+    fn test_sort_descending_tags() {
+        let mut tags = vec![
+            "v1.0.0".to_string(),
+            "v2.0.0".to_string(),
+            "v1.1.0".to_string(),
+        ];
+
+        sort_descending(&mut tags);
+
+        assert_eq!(tags, vec!["v2.0.0", "v1.1.0", "v1.0.0"]);
     }
 }
