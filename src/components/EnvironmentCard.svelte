@@ -67,9 +67,11 @@
     />
   {/if}
 
-  {#if activeDeploymentId}
-    <DeployOutput deploymentId={activeDeploymentId} onCompleted={handleDeployCompleted} />
-  {/if}
+  {#key activeDeploymentId}
+    {#if activeDeploymentId}
+      <DeployOutput deploymentId={activeDeploymentId} onCompleted={handleDeployCompleted} />
+    {/if}
+  {/key}
 </div>
 
 <style>
