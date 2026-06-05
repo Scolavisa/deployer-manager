@@ -620,11 +620,12 @@ dependencies = [
 
 [[package]]
 name = "deployment-manager"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "dirs",
  "log",
  "proptest",
+ "semver",
  "serde",
  "serde_json",
  "serde_yaml",

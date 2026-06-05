@@ -1,6 +1,8 @@
 use std::path::Path;
 use std::process::Command;
 
+use semver::Version;
+
 use crate::error::AppError;
 use crate::services::process;
 
@@ -25,7 +27,21 @@ pub fn get_tags(project_path: &Path) -> Result<Vec<String>, AppError> {
 }
 
 fn sort_descending(values: &mut [String]) {
-    values.sort_by(|a, b| b.cmp(a));
+    values.sort_by(|a, b| compare_tags_desc(a, b));
+}
+
+fn compare_tags_desc(a: &str, b: &str) -> std::cmp::Ordering {
+    match (parse_tag_version(a), parse_tag_version(b)) {
+        (Some(a_version), Some(b_version)) => b_version.cmp(&a_version),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => b.cmp(a),
+    }
+}
+
+fn parse_tag_version(tag: &str) -> Option<Version> {
+    // Support both plain semver tags (1.2.3) and common prefixed tags (v1.2.3).
+    Version::parse(tag.trim_start_matches('v')).ok()
 }
 
 /// Get all git branches (local and remote) from a repository directory
@@ -51,7 +67,12 @@ pub fn get_branches(project_path: &Path) -> Result<Vec<String>, AppError> {
 pub fn parse_git_output(output: &str) -> Vec<String> {
     output
         .lines()
-        .map(|line| line.trim().trim_start_matches("* ").to_string())
+        .map(|line| {
+            line.trim()
+                .trim_start_matches("* ")
+                .trim_start_matches("origin/")
+                .to_string()
+        })
         .filter(|line| !line.is_empty())
         .collect()
 }
@@ -89,6 +110,20 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_git_output_with_origin_prefix() {
+        let output = "origin/main\norigin/develop\norigin/feature/test\n";
+        let result = parse_git_output(output);
+        assert_eq!(result, vec!["main", "develop", "feature/test"]);
+    }
+
+    #[test]
+    fn test_parse_git_output_with_origin_and_star_prefix() {
+        let output = "* origin/main\n  origin/develop\n  origin/feature/test\n";
+        let result = parse_git_output(output);
+        assert_eq!(result, vec!["main", "develop", "feature/test"]);
+    }
+
+    #[test]
     fn test_parse_git_output_with_empty_lines() {
         let output = "tag1\n\ntag2\n\n";
         let result = parse_git_output(output);
@@ -96,15 +131,33 @@ mod tests {
     }
 
     #[test]
-    fn test_sort_descending_tags() {
+    fn test_sort_descending_tags_semver() {
         let mut tags = vec![
             "v1.0.0".to_string(),
             "v2.0.0".to_string(),
             "v1.1.0".to_string(),
+            "v1.10.0".to_string(),
         ];
 
         sort_descending(&mut tags);
 
-        assert_eq!(tags, vec!["v2.0.0", "v1.1.0", "v1.0.0"]);
+        assert_eq!(tags, vec!["v2.0.0", "v1.10.0", "v1.1.0", "v1.0.0"]);
+    }
+
+    #[test]
+    fn test_sort_descending_tags_mixed_semver_and_non_semver() {
+        let mut tags = vec![
+            "release-candidate".to_string(),
+            "v1.2.0".to_string(),
+            "v1.10.0".to_string(),
+            "nightly".to_string(),
+        ];
+
+        sort_descending(&mut tags);
+
+        assert_eq!(
+            tags,
+            vec!["v1.10.0", "v1.2.0", "release-candidate", "nightly"]
+        );
     }
 }
