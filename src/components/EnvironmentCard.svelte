@@ -13,14 +13,19 @@
 
   let showDeployForm = $state(false);
   let activeDeploymentId: string | null = $state(null);
+  let deploying = $state(false);
 
   function handleDeployStarted(deploymentId: string) {
     activeDeploymentId = deploymentId;
+    deploying = false;
     showDeployForm = false;
   }
 
   function handleCloseForm() {
     showDeployForm = false;
+  }
+  function handleDeployingChange(isDeploying: boolean) {
+    deploying = isDeploying;
   }
 
   function handleDeployCompleted() {
@@ -53,8 +58,13 @@
         {/if}
       </div>
     </div>
-    <button class="deploy-btn" onclick={() => (showDeployForm = true)}>
-      Deploy
+    <button class="deploy-btn" onclick={() => (showDeployForm = true)} disabled={deploying}>
+      {#if deploying}
+        <span class="spinner" aria-hidden="true">↻</span>
+        Deploying
+      {:else}
+        Deploy
+      {/if}
     </button>
   </div>
 
@@ -64,11 +74,12 @@
       environment={environment.name}
       onClose={handleCloseForm}
       onDeployStarted={handleDeployStarted}
+      onDeployingChange={handleDeployingChange}
     />
   {/if}
 
   {#key activeDeploymentId}
-    {#if activeDeploymentId}
+    {#if activeDeploymentId && !deploying}
       <DeployOutput deploymentId={activeDeploymentId} onCompleted={handleDeployCompleted} />
     {/if}
   {/key}
@@ -126,10 +137,32 @@
     color: var(--bg-primary);
     font-weight: 500;
     padding: 6px 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     flex-shrink: 0;
   }
 
-  .deploy-btn:hover {
+  .deploy-btn:hover:not(:disabled) {
     background: var(--accent-hover);
+  }
+
+  .deploy-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 </style>

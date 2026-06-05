@@ -1,6 +1,6 @@
 [package]
 name = "deployment-manager"
-version = "0.2.1"
+version = "0.3.0"
 description = "A Tauri-based deployment manager for PHP Deployer"
 authors = ["you"]
 edition = "2021"
@@ -24,6 +24,7 @@ tokio = { version = "1", features = ["full"] }
 uuid = { version = "1", features = ["v4"] }
 thiserror = "2"
 dirs = "6"
+semver = "1"
 
 [dev-dependencies]
 proptest = "1"

@@ -6,9 +6,10 @@
     environment: string;
     onClose: () => void;
     onDeployStarted: (deploymentId: string) => void;
+    onDeployingChange: (deploying: boolean) => void;
   }
 
-  let { projectId, environment, onClose, onDeployStarted }: Props = $props();
+  let { projectId, environment, onClose, onDeployStarted, onDeployingChange }: Props = $props();
 
   let tags: string[] = $state([]);
   let branches: string[] = $state([]);
@@ -62,6 +63,7 @@
     }
 
     deploying = true;
+    onDeployingChange(true);
     error = "";
 
     try {
@@ -71,10 +73,12 @@
         selectedTag || undefined,
         selectedBranch || undefined
       );
+      onDeployingChange(false);
       onDeployStarted(deploymentId);
     } catch (e: any) {
       error = typeof e === "string" ? e : "Failed to start deployment";
       deploying = false;
+      onDeployingChange(false);
     }
   }
 </script>
@@ -129,7 +133,12 @@
     <div class="form-actions">
       <button class="cancel-btn" onclick={onClose} disabled={deploying}>Cancel</button>
       <button class="deploy-btn" onclick={handleDeploy} disabled={deploying}>
-        {deploying ? "Deploying..." : "Deploy"}
+        {#if deploying}
+          <span class="spinner" aria-hidden="true">↻</span>
+          Deploying...
+        {:else}
+          Deploy
+        {/if}
       </button>
     </div>
   {/if}
@@ -227,6 +236,9 @@
     background: var(--success);
     color: var(--bg-primary);
     font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .deploy-btn:hover:not(:disabled) {
@@ -237,5 +249,19 @@
   .cancel-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  .spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 </style>
