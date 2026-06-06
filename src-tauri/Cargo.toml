@@ -1,6 +1,6 @@
 [package]
 name = "deployment-manager"
-version = "0.3.0"
+version = "0.4.0"
 description = "A Tauri-based deployment manager for PHP Deployer"
 authors = ["you"]
 edition = "2021"

@@ -44,11 +44,13 @@ fn parse_tag_version(tag: &str) -> Option<Version> {
     Version::parse(tag.trim_start_matches('v')).ok()
 }
 
-/// Get all git branches (local and remote) from a repository directory
+/// Get remote git branches from a repository directory.
+/// Only remote branches are shown because PHP Deployer checks out branches on
+/// the remote server, so local-only branches cannot be deployed.
 pub fn get_branches(project_path: &Path) -> Result<Vec<String>, AppError> {
     let git_path = process::resolve_git_path();
     let output = Command::new(&git_path)
-        .args(["branch", "-a", "--format=%(refname:short)"])
+        .args(["branch", "-r", "--format=%(refname:short)"])
         .current_dir(project_path)
         .output()
         .map_err(|e| AppError::GitError(format!("Failed to execute git branch: {}", e)))?;
@@ -59,8 +61,31 @@ pub fn get_branches(project_path: &Path) -> Result<Vec<String>, AppError> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let branches = parse_git_output(&stdout);
+    let mut branches = parse_remote_branches(&stdout);
+
+    branches.sort();
+    branches.dedup();
+
     Ok(branches)
+}
+
+/// Parse `git branch -r --format=%(refname:short)` output into branch names.
+/// Each line is `<remote>/<branch>` (e.g. `origin/master`). We split on the
+/// first `/` to strip the remote name. Entries without `/` (e.g. bare `origin`
+/// when git shortens `origin/HEAD`) and `HEAD` refs are excluded.
+fn parse_remote_branches(output: &str) -> Vec<String> {
+    output
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            // Split "origin/branch-name" → ("origin", "branch-name")
+            let (_, branch) = trimmed.split_once('/')?;
+            if branch == "HEAD" {
+                return None;
+            }
+            Some(branch.to_string())
+        })
+        .collect()
 }
 
 /// Parse git command output into a list of trimmed, non-empty lines
@@ -159,5 +184,47 @@ mod tests {
             tags,
             vec!["v1.10.0", "v1.2.0", "release-candidate", "nightly"]
         );
+    }
+
+    #[test]
+    fn test_parse_remote_branches_filters_head() {
+        let output = "origin/HEAD\norigin/master\norigin/develop\n";
+        let result = parse_remote_branches(output);
+        assert_eq!(result, vec!["master", "develop"]);
+    }
+
+    #[test]
+    fn test_parse_remote_branches_bare_origin_excluded() {
+        // Some git versions shorten origin/HEAD to just "origin" (no slash).
+        // split_once('/') returns None for bare "origin", so it's excluded.
+        let output = "origin\norigin/master\norigin/develop\n";
+        let result = parse_remote_branches(output);
+        assert_eq!(result, vec!["master", "develop"]);
+    }
+
+    #[test]
+    fn test_parse_remote_branches_preserves_slashes_in_branch_name() {
+        // feature/login contains a slash — only the first slash (remote separator) is stripped
+        let output = "origin/master\norigin/feature/login\n";
+        let result = parse_remote_branches(output);
+        assert_eq!(result, vec!["master", "feature/login"]);
+    }
+
+    #[test]
+    fn test_parse_remote_branches_dedup_after_sort() {
+        let output = "origin/master\norigin/master\norigin/develop\n";
+        let mut branches = parse_remote_branches(output);
+        branches.sort();
+        branches.dedup();
+        assert_eq!(branches, vec!["develop", "master"]);
+    }
+
+    #[test]
+    fn test_parse_remote_branches_typical_output() {
+        let output = "origin/HEAD\norigin/master\norigin/develop\norigin/feature/login\n";
+        let mut branches = parse_remote_branches(output);
+        branches.sort();
+        branches.dedup();
+        assert_eq!(branches, vec!["develop", "feature/login", "master"]);
     }
 }

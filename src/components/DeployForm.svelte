@@ -111,7 +111,7 @@
       <div class="separator">or</div>
 
       <div class="field">
-        <label for="branch-select">Branch</label>
+        <label for="branch-select">Branch (remote)</label>
         <select
           id="branch-select"
           value={selectedBranch}
