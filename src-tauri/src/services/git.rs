@@ -61,15 +61,31 @@ pub fn get_branches(project_path: &Path) -> Result<Vec<String>, AppError> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut branches = parse_git_output(&stdout);
+    let mut branches = parse_remote_branches(&stdout);
 
-    // Filter out HEAD tracking refs (e.g. origin/HEAD -> origin/master)
-    branches.retain(|b| b != "HEAD" && !b.ends_with("/HEAD"));
-    // Deduplicate in case multiple remotes resolve to the same branch name
     branches.sort();
     branches.dedup();
 
     Ok(branches)
+}
+
+/// Parse `git branch -r --format=%(refname:short)` output into branch names.
+/// Each line is `<remote>/<branch>` (e.g. `origin/master`). We split on the
+/// first `/` to strip the remote name. Entries without `/` (e.g. bare `origin`
+/// when git shortens `origin/HEAD`) and `HEAD` refs are excluded.
+fn parse_remote_branches(output: &str) -> Vec<String> {
+    output
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            // Split "origin/branch-name" → ("origin", "branch-name")
+            let (_, branch) = trimmed.split_once('/')?;
+            if branch == "HEAD" {
+                return None;
+            }
+            Some(branch.to_string())
+        })
+        .collect()
 }
 
 /// Parse git command output into a list of trimmed, non-empty lines
@@ -171,33 +187,42 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_git_output_filters_head_after_origin_strip() {
-        // origin/HEAD becomes HEAD after stripping; get_branches filters it out
+    fn test_parse_remote_branches_filters_head() {
         let output = "origin/HEAD\norigin/master\norigin/develop\n";
-        let mut branches = parse_git_output(output);
-        branches.retain(|b| b != "HEAD" && !b.ends_with("/HEAD"));
-        branches.sort();
-        branches.dedup();
-        assert_eq!(branches, vec!["develop", "master"]);
+        let result = parse_remote_branches(output);
+        assert_eq!(result, vec!["master", "develop"]);
     }
 
     #[test]
-    fn test_parse_git_output_deduplicates_branches() {
-        // Simulates remote-only output where duplicates could arise
+    fn test_parse_remote_branches_bare_origin_excluded() {
+        // Some git versions shorten origin/HEAD to just "origin" (no slash).
+        // split_once('/') returns None for bare "origin", so it's excluded.
+        let output = "origin\norigin/master\norigin/develop\n";
+        let result = parse_remote_branches(output);
+        assert_eq!(result, vec!["master", "develop"]);
+    }
+
+    #[test]
+    fn test_parse_remote_branches_preserves_slashes_in_branch_name() {
+        // feature/login contains a slash — only the first slash (remote separator) is stripped
+        let output = "origin/master\norigin/feature/login\n";
+        let result = parse_remote_branches(output);
+        assert_eq!(result, vec!["master", "feature/login"]);
+    }
+
+    #[test]
+    fn test_parse_remote_branches_dedup_after_sort() {
         let output = "origin/master\norigin/master\norigin/develop\n";
-        let mut branches = parse_git_output(output);
-        branches.retain(|b| b != "HEAD" && !b.ends_with("/HEAD"));
+        let mut branches = parse_remote_branches(output);
         branches.sort();
         branches.dedup();
         assert_eq!(branches, vec!["develop", "master"]);
     }
 
     #[test]
-    fn test_remote_branches_typical_output() {
-        // Typical `git branch -r --format=%(refname:short)` output
+    fn test_parse_remote_branches_typical_output() {
         let output = "origin/HEAD\norigin/master\norigin/develop\norigin/feature/login\n";
-        let mut branches = parse_git_output(output);
-        branches.retain(|b| b != "HEAD" && !b.ends_with("/HEAD"));
+        let mut branches = parse_remote_branches(output);
         branches.sort();
         branches.dedup();
         assert_eq!(branches, vec!["develop", "feature/login", "master"]);
