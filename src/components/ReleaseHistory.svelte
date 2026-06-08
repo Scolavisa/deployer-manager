@@ -16,7 +16,20 @@
 
   // Show only the last N releases (keep_releases from hosts.yaml, default 5)
   let displayLimit = $derived(keepReleases || 5);
-  let releases = $derived(allReleases.slice(0, displayLimit));
+  
+  // Always include the current release if it exists and is outside the display range
+  let releases = $derived.by(() => {
+    const currentRelease = allReleases.find(r => r.is_current);
+    const displayed = allReleases.slice(0, displayLimit);
+    
+    // If current release exists and is not already in the displayed range, add it
+    if (currentRelease && !displayed.includes(currentRelease)) {
+      // Insert it at the end of the displayed releases
+      return [...displayed, currentRelease];
+    }
+    
+    return displayed;
+  });
 
   $effect(() => {
     if (projectId && environment) {
@@ -76,7 +89,7 @@
       {/each}
     </div>
     {#if allReleases.length > displayLimit}
-      <p class="muted showing-info">Showing {displayLimit} of {allReleases.length} releases</p>
+      <p class="muted showing-info">Showing {releases.length} of {allReleases.length} releases</p>
     {/if}
   {/if}
 </div>
