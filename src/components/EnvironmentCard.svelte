@@ -17,7 +17,7 @@
 
   function handleDeployStarted(deploymentId: string) {
     activeDeploymentId = deploymentId;
-    deploying = false;
+    deploying = true;
     showDeployForm = false;
   }
 
@@ -29,6 +29,7 @@
   }
 
   function handleDeployCompleted() {
+    deploying = false;
     if (onDeployCompleted) {
       onDeployCompleted();
     }
@@ -79,7 +80,7 @@
   {/if}
 
   {#key activeDeploymentId}
-    {#if activeDeploymentId && !deploying}
+    {#if activeDeploymentId}
       <DeployOutput deploymentId={activeDeploymentId} onCompleted={handleDeployCompleted} />
     {/if}
   {/key}

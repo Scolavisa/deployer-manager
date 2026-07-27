@@ -45,46 +45,64 @@ pub async fn start_deployment(
         );
     }
 
-    let start = Instant::now();
+    // Run the deployment in the background so this command returns immediately and the
+    // frontend can render streamed `deploy_output` events while the deployment is running.
+    let deployments_handle = state.active_deployments.clone();
+    let bg_deployment_id = deployment_id.clone();
+    let project_path = proj.path.clone();
+    tauri::async_runtime::spawn(async move {
+        let start = Instant::now();
 
-    // Spawn the deployment process
-    let exit_code = process::spawn_deployment(
-        &app_handle,
-        &deployment_id,
-        &proj.path,
-        &deploy_config,
-        &environment,
-        tag.as_deref(),
-        branch.as_deref(),
-    )
-    .await?;
+        let result = process::spawn_deployment(
+            &app_handle,
+            &bg_deployment_id,
+            &project_path,
+            &deploy_config,
+            &environment,
+            tag.as_deref(),
+            branch.as_deref(),
+        )
+        .await;
 
-    let duration_secs = start.elapsed().as_secs_f64();
-    let success = exit_code == 0;
+        let duration_secs = start.elapsed().as_secs_f64();
+        let exit_code = match result {
+            Ok(code) => code,
+            Err(e) => {
+                let _ = app_handle.emit(
+                    "deploy_output",
+                    serde_json::json!({
+                        "deployment_id": bg_deployment_id,
+                        "line": e.to_string(),
+                        "stream": "Stderr",
+                    }),
+                );
+                -1
+            }
+        };
+        let success = exit_code == 0;
 
-    // Update status to completed
-    {
-        let mut deployments = state.active_deployments.lock().unwrap();
-        deployments.insert(
-            deployment_id.clone(),
-            DeploymentStatus::Completed {
-                deployment_id: deployment_id.clone(),
-                success,
-                exit_code,
-                duration_secs,
-            },
+        {
+            let mut deployments = deployments_handle.lock().unwrap();
+            deployments.insert(
+                bg_deployment_id.clone(),
+                DeploymentStatus::Completed {
+                    deployment_id: bg_deployment_id.clone(),
+                    success,
+                    exit_code,
+                    duration_secs,
+                },
+            );
+        }
+
+        let _ = app_handle.emit(
+            "deploy_complete",
+            serde_json::json!({
+                "deployment_id": bg_deployment_id,
+                "success": success,
+                "exit_code": exit_code,
+            }),
         );
-    }
-
-    // Emit completion event
-    let _ = app_handle.emit(
-        "deploy_complete",
-        serde_json::json!({
-            "deployment_id": deployment_id,
-            "success": success,
-            "exit_code": exit_code,
-        }),
-    );
+    });
 
     Ok(deployment_id)
 }
