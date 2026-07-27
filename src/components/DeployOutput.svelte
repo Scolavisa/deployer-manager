@@ -35,6 +35,13 @@
     status = newStatus;
   });
 
+  let currentStep = $derived(
+    outputLines
+      .map((l) => l.line.trim())
+      .filter((l) => l.length > 0)
+      .at(-1) ?? "Starting deployment…"
+  );
+
   function handleScroll() {
     if (!container) return;
     const { scrollTop, scrollHeight, clientHeight } = container;
@@ -43,7 +50,12 @@
 </script>
 
 <div class="deploy-output">
-  {#if status?.type === "Completed"}
+  {#if status?.type !== "Completed"}
+    <div class="status-bar running">
+      <span class="spinner" aria-hidden="true">↻</span>
+      {currentStep}
+    </div>
+  {:else}
     <div class="status-bar" class:success={status.success} class:failure={!status.success}>
       {#if status.success}
         ✓ Deployment completed successfully
@@ -77,6 +89,32 @@
     padding: 6px 12px;
     font-size: 0.78rem;
     font-weight: 500;
+  }
+
+  .status-bar.running {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .status-bar.success {
