@@ -10,6 +10,12 @@
   let currentSelectedId: string | null = $state(null);
   let appVersion = $state("");
 
+  let sortedProjects = $derived(
+    [...projectList].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+    )
+  );
+
   onMount(async () => {
     try {
       appVersion = await getVersion();
@@ -47,7 +53,7 @@
   </div>
 
   <div class="list">
-    {#each projectList as project (project.id)}
+    {#each sortedProjects as project (project.id)}
       <button
         class="project-item"
         class:selected={currentSelectedId === project.id}
@@ -62,7 +68,7 @@
       </button>
     {/each}
 
-    {#if projectList.length === 0}
+    {#if sortedProjects.length === 0}
       <p class="empty">No projects registered</p>
     {/if}
   </div>
@@ -139,6 +145,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    text-transform: capitalize;
   }
 
   .unavailable-icon {
