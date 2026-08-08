@@ -21,3 +21,9 @@ pub async fn get_branches(
     let proj = project::get_project(&project_id, &state)?;
     git_service::get_branches(&proj.path)
 }
+
+#[tauri::command]
+pub async fn fetch_git(project_id: String, state: State<'_, AppState>) -> Result<(), AppError> {
+    let proj = project::get_project(&project_id, &state)?;
+    git_service::fetch_all(&proj.path)
+}

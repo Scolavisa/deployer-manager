@@ -6,6 +6,23 @@ use semver::Version;
 use crate::error::AppError;
 use crate::services::process;
 
+/// Fetch all remotes and tags so deploy dropdowns reflect remote state.
+pub fn fetch_all(project_path: &Path) -> Result<(), AppError> {
+    let git_path = process::resolve_git_path();
+    let output = Command::new(&git_path)
+        .args(["fetch", "--all", "--tags"])
+        .current_dir(project_path)
+        .output()
+        .map_err(|e| AppError::GitError(format!("Failed to execute git fetch: {}", e)))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(AppError::GitError(format!("git fetch failed: {}", stderr)));
+    }
+
+    Ok(())
+}
+
 /// Get all git tags from a repository directory
 pub fn get_tags(project_path: &Path) -> Result<Vec<String>, AppError> {
     let git_path = process::resolve_git_path();
