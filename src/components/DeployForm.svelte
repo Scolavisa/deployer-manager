@@ -4,12 +4,20 @@
   interface Props {
     projectId: string;
     environment: string;
+    gitRefreshKey?: number;
     onClose: () => void;
     onDeployStarted: (deploymentId: string) => void;
     onDeployingChange: (deploying: boolean) => void;
   }
 
-  let { projectId, environment, onClose, onDeployStarted, onDeployingChange }: Props = $props();
+  let {
+    projectId,
+    environment,
+    gitRefreshKey = 0,
+    onClose,
+    onDeployStarted,
+    onDeployingChange,
+  }: Props = $props();
 
   let tags: string[] = $state([]);
   let branches: string[] = $state([]);
@@ -20,6 +28,9 @@
   let error = $state("");
 
   $effect(() => {
+    // Re-load when project changes or after a project-level git fetch
+    void projectId;
+    void gitRefreshKey;
     loadGitData();
   });
 

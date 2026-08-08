@@ -6,6 +6,12 @@ use serde::Deserialize;
 use crate::error::AppError;
 use crate::models::Environment;
 
+/// Optional link entry from hosts.yaml (`links: [{ weburl: ... }]`)
+#[derive(Debug, Deserialize)]
+struct LinkEntry {
+    weburl: Option<String>,
+}
+
 /// Raw host entry as deserialized from YAML
 #[derive(Debug, Deserialize)]
 struct HostEntry {
@@ -15,8 +21,9 @@ struct HostEntry {
     branch: Option<String>,
     stage: Option<String>,
     #[serde(default)]
-    #[allow(dead_code)]
     keep_releases: Option<u32>,
+    #[serde(default)]
+    links: Option<Vec<LinkEntry>>,
 }
 
 /// Parse a hosts.yaml file and extract all environments
@@ -62,6 +69,16 @@ pub fn parse_hosts_yaml(content: &str) -> Result<Vec<Environment>, AppError> {
             branch: entry.branch,
             stage: entry.stage,
             keep_releases: entry.keep_releases,
+            links: entry
+                .links
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|link| {
+                    link.weburl
+                        .map(|url| url.trim().to_string())
+                        .filter(|url| !url.is_empty())
+                })
+                .collect(),
         })
         .collect();
 
@@ -162,6 +179,41 @@ dev:
         assert_eq!(dev.hostname, "dev.example.com");
         assert_eq!(dev.branch, None);
         assert_eq!(dev.stage, None);
+        assert!(dev.links.is_empty());
+    }
+
+    #[test]
+    fn test_parse_host_links() {
+        let yaml = r#"
+hosts:
+  prod:
+    hostname: prod.example.com
+    remote_user: deploy
+    deploy_path: /var/www/app
+    links:
+      - { weburl: https://classe.scolavisa.eu }
+      - { weburl: " https://admin.example.com " }
+      - { weburl: "" }
+  staging:
+    hostname: staging.example.com
+    remote_user: deploy
+    deploy_path: /var/www/staging
+"#;
+
+        let envs = parse_hosts_yaml(yaml).unwrap();
+        assert_eq!(envs.len(), 2);
+
+        let prod = envs.iter().find(|e| e.name == "prod").unwrap();
+        assert_eq!(
+            prod.links,
+            vec![
+                "https://classe.scolavisa.eu".to_string(),
+                "https://admin.example.com".to_string(),
+            ]
+        );
+
+        let staging = envs.iter().find(|e| e.name == "staging").unwrap();
+        assert!(staging.links.is_empty());
     }
 
     #[test]

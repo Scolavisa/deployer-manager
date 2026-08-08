@@ -13,6 +13,7 @@ export interface Environment {
   branch?: string;
   stage?: string;
   keep_releases?: number;
+  links?: string[];
 }
 
 export interface DeploymentStatus {

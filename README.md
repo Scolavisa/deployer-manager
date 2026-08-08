@@ -8,7 +8,9 @@ Register your projects, see their environments, deploy with a click, and track r
 
 - Manage deployments for multiple projects from a single app
 - Auto-discovers environments from each project's `hosts.yaml`
+- Optional per-environment links from `hosts.yaml` shown on deployment cards
 - Quick deploy with tag or branch selection
+- Fetch remote git tags and branches to refresh deploy targets
 - View deployment output after completion
 - Release history per environment
 - Light and dark theme
@@ -69,6 +71,8 @@ hosts:
     branch: master
     keep_releases: 5
     stage: prod
+    links:
+      - { weburl: https://classe.scolavisa.eu }
   staging:
     hostname: server.example.com
     remote_user: deploy
@@ -86,6 +90,7 @@ hosts:
 | `branch` | no | Default branch for this environment |
 | `stage` | no | Stage identifier (e.g., "prod", "staging") |
 | `keep_releases` | no | Number of recent releases to show in the app (default: 5) |
+| `links` | no | Optional list of `{ weburl: ... }` entries shown as clickable URLs on the environment card |
 
 ## CLI Commands
 
@@ -114,6 +119,9 @@ On macOS, config is stored in `~/Library/Application Support/deployment-manager/
 ## Tips
 
 - **Theme**: Click the ☀/🌙 button in the bottom-right corner to switch between light and dark mode
+- **Projects**: Listed alphabetically in the sidebar with capitalized names
+- **Fetch git**: Use **Fetch git** on the project panel to run `git fetch --all --tags` so new remote branches and tags appear in the deploy dropdowns
+- **Links**: Add optional `links` entries under a host in `hosts.yaml` to show the target URL(s) on that environment's card
 - **Release history**: Shows the most recent releases based on `keep_releases` in your hosts.yaml (defaults to 5)
 - **Environments**: Displayed in alphabetical order for consistency across sessions
 - **Logs**: Check the log directory if something isn't working — environment discovery and deployment errors are logged there

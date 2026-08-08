@@ -10,4 +10,7 @@ pub struct Environment {
     pub branch: Option<String>,
     pub stage: Option<String>,
     pub keep_releases: Option<u32>,
+    /// Optional convenience URLs from hosts.yaml `links[].weburl`
+    #[serde(default)]
+    pub links: Vec<String>,
 }

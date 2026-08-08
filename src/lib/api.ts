@@ -55,3 +55,7 @@ export async function getTags(projectId: string): Promise<string[]> {
 export async function getBranches(projectId: string): Promise<string[]> {
   return invoke<string[]>("get_branches", { projectId });
 }
+
+export async function fetchGit(projectId: string): Promise<void> {
+  return invoke<void>("fetch_git", { projectId });
+}
