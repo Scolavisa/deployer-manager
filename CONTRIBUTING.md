@@ -258,8 +258,6 @@ The version from `tauri.conf.json` is shown in the app sidebar (bottom). Tauri p
 - **Major** (x.0.0): Breaking changes to config format or behavior
 
 ## Known Limitations
-
-- **No real-time output streaming** — PHP Deployer buffers stdout when not connected to a TTY. Output appears after the deployment completes. This is a known limitation we'd like to solve.
 - **Linux only** — macOS support is planned but not yet tested.
 - **No concurrent deployments** — deploying to the same environment while one is running is not prevented at the UI level (the backend handles it gracefully).
 
