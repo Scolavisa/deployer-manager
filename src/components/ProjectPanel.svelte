@@ -1,6 +1,6 @@
 <script lang="ts">
   import { selectedProjectId, projects } from "../lib/stores";
-  import { getEnvironments, removeProject, listProjects } from "../lib/api";
+  import { getEnvironments, removeProject, listProjects, fetchGit } from "../lib/api";
   import type { Project, Environment } from "../types";
   import EnvironmentCard from "./EnvironmentCard.svelte";
   import ReleaseHistory from "./ReleaseHistory.svelte";
@@ -13,6 +13,9 @@
   let confirmRemove = $state(false);
   let selectedEnvForHistory: string = $state("");
   let releaseRefreshKey = $state(0);
+  let gitRefreshKey = $state(0);
+  let fetchingGit = $state(false);
+  let gitFetchError = $state("");
 
   function handleDeployCompleted() {
     // Increment key to force ReleaseHistory to re-fetch
@@ -23,6 +26,7 @@
     currentProjectId = id;
     confirmRemove = false;
     selectedEnvForHistory = "";
+    gitFetchError = "";
   });
 
   projects.subscribe((list) => {
@@ -73,6 +77,20 @@
       console.error("Failed to remove project:", e);
     }
   }
+
+  async function handleFetchGit() {
+    if (!currentProjectId || fetchingGit) return;
+    fetchingGit = true;
+    gitFetchError = "";
+    try {
+      await fetchGit(currentProjectId);
+      gitRefreshKey++;
+    } catch (e: any) {
+      gitFetchError = typeof e === "string" ? e : "Failed to fetch git remotes";
+    } finally {
+      fetchingGit = false;
+    }
+  }
 </script>
 
 {#if !currentProjectId}
@@ -92,10 +110,27 @@
           <button class="confirm-yes" onclick={handleRemove}>Yes, remove</button>
           <button class="confirm-no" onclick={() => (confirmRemove = false)}>Cancel</button>
         {:else}
+          <button
+            class="fetch-btn"
+            onclick={handleFetchGit}
+            disabled={fetchingGit}
+            title="git fetch --all --tags"
+          >
+            {#if fetchingGit}
+              <span class="spinner" aria-hidden="true">↻</span>
+              Fetching...
+            {:else}
+              ↻ Fetch git
+            {/if}
+          </button>
           <button class="remove-btn" onclick={() => (confirmRemove = true)}>Remove</button>
         {/if}
       </div>
     </div>
+
+    {#if gitFetchError}
+      <p class="error git-fetch-error">{gitFetchError}</p>
+    {/if}
 
     <section class="environments-section">
       <h3>Environments</h3>
@@ -107,7 +142,12 @@
         <p class="muted">No environments found in hosts.yaml</p>
       {:else}
         {#each environments as env (env.name)}
-          <EnvironmentCard environment={env} projectId={project.id} onDeployCompleted={handleDeployCompleted} />
+          <EnvironmentCard
+            environment={env}
+            projectId={project.id}
+            {gitRefreshKey}
+            onDeployCompleted={handleDeployCompleted}
+          />
         {/each}
       {/if}
     </section>
@@ -205,6 +245,25 @@
     background: var(--bg-hover);
   }
 
+  .fetch-btn {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .fetch-btn:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .fetch-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
   .remove-btn {
     background: var(--bg-tertiary);
     color: var(--error);
@@ -213,6 +272,24 @@
 
   .remove-btn:hover {
     background: rgba(247, 118, 142, 0.15);
+  }
+
+  .git-fetch-error {
+    margin-bottom: 16px;
+  }
+
+  .spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .environments-section,
