@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { open } from "@tauri-apps/plugin-shell";
   import type { Environment } from "../types";
   import DeployForm from "./DeployForm.svelte";
   import DeployOutput from "./DeployOutput.svelte";
@@ -6,14 +7,25 @@
   interface Props {
     environment: Environment;
     projectId: string;
+    gitRefreshKey?: number;
     onDeployCompleted?: () => void;
   }
 
-  let { environment, projectId, onDeployCompleted }: Props = $props();
+  let { environment, projectId, gitRefreshKey = 0, onDeployCompleted }: Props = $props();
 
   let showDeployForm = $state(false);
   let activeDeploymentId: string | null = $state(null);
   let deploying = $state(false);
+  let links = $derived(environment.links ?? []);
+
+  async function openLink(url: string, event: MouseEvent) {
+    event.preventDefault();
+    try {
+      await open(url);
+    } catch (e) {
+      console.error("Failed to open link:", e);
+    }
+  }
 
   function handleDeployStarted(deploymentId: string) {
     activeDeploymentId = deploymentId;
@@ -57,6 +69,14 @@
             <span class="label">Keep releases:</span> {environment.keep_releases}
           </span>
         {/if}
+        {#if links.length > 0}
+          <div class="links">
+            <span class="label">Links:</span>
+            {#each links as url}
+              <a class="env-link" href={url} onclick={(e) => openLink(url, e)}>{url}</a>
+            {/each}
+          </div>
+        {/if}
       </div>
     </div>
     <button class="deploy-btn" onclick={() => (showDeployForm = true)} disabled={deploying}>
@@ -73,6 +93,7 @@
     <DeployForm
       {projectId}
       environment={environment.name}
+      {gitRefreshKey}
       onClose={handleCloseForm}
       onDeployStarted={handleDeployStarted}
       onDeployingChange={handleDeployingChange}
@@ -131,6 +152,30 @@
 
   .detail .label {
     color: var(--text-muted);
+  }
+
+  .links {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 2px;
+    font-size: 0.78rem;
+  }
+
+  .links .label {
+    color: var(--text-muted);
+  }
+
+  .env-link {
+    color: var(--accent);
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .env-link:hover {
+    text-decoration: underline;
   }
 
   .deploy-btn {
